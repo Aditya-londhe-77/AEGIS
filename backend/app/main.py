@@ -14,14 +14,16 @@ load_dotenv()
 from app.shared.schemas import AgentRequest, Claim, AgentResponse
 from app.orchestrator.workflow import create_workflow
 from app.shared.websocket_manager import manager
+from app.shared.llm import is_configured
 from app.database.supabase_client import (
-    log_query, 
-    log_query_complete, 
-    log_briefing, 
+    log_query,
+    log_query_complete,
+    log_briefing,
     get_query_history,
     get_briefing_by_query_id
 )
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 orchestrator_app = create_workflow()
@@ -48,15 +50,17 @@ SESSION_CACHE: Dict[str, Dict[str, Any]] = {}
 async def health_check():
     """Basic health check endpoint"""
     return {
-        "status": "ok", 
+        "status": "ok",
         "service": "aegis-backend",
         "version": "1.0.0",
-        "swarm_status": "ready"
+        "swarm_status": "ready",
+        "llm_configured": is_configured()
     }
 
 @app.get("/api/config")
 async def get_system_config():
     """Returns active model routing and operational parameters"""
+    llm_active = is_configured()
     return {
         "models": {
             "recon": "gemini-1.5-flash",
@@ -74,8 +78,10 @@ async def get_system_config():
         "status": {
             "neo4j": "connected",
             "chromadb": "persistent",
-            "supabase": "active"
-        }
+            "supabase": "active",
+            "llm": "active" if llm_active else "fallback_mode"
+        },
+        "llm_configured": llm_active
     }
 
 @app.get("/api/history")
@@ -85,7 +91,6 @@ async def get_history(limit: int = 20, offset: int = 0):
     """
     records = await get_query_history(limit=limit, offset=offset)
     if not records and SESSION_CACHE:
-        # Fallback to in-memory cache if Supabase is offline
         records = [
             {
                 "id": qid,
@@ -112,7 +117,7 @@ def serialize_claim(claim: Any) -> Dict[str, Any]:
             "agent_id": getattr(claim, "agent_id", "recon_agent"),
             "challenged": getattr(claim, "challenged", False)
         }
-    
+
     # Ensure sources are serializable
     serialized_sources = []
     for s in d.get("sources", []):
@@ -131,10 +136,15 @@ async def get_query_result(query_id: str):
     Returns the complete briefing, verified claims, adversarial challenges,
     and confidence scores for a given query session ID.
     """
+    # 1. In-memory cache (fastest — populated by background task)
     if query_id in SESSION_CACHE:
-        return SESSION_CACHE[query_id]
-        
-    # Check Supabase
+        cached = SESSION_CACHE[query_id]
+        # Only return if analysis is complete; otherwise tell client to keep waiting
+        if cached.get("status") == "processing":
+            return {"query_id": query_id, "status": "processing"}
+        return cached
+
+    # 2. Check Supabase persistent store
     db_briefing = await get_briefing_by_query_id(query_id)
     if db_briefing:
         raw_data = db_briefing.get("raw_data", {})
@@ -145,106 +155,15 @@ async def get_query_result(query_id: str):
             "briefing": raw_data,
             "confidence": {"overall_score": db_briefing.get("confidence_score", 85)},
             "claims": raw_data.get("claims", []),
-            "challenges": raw_data.get("challenges", [])
+            "challenges": raw_data.get("challenges", []),
+            "debate_transcript": raw_data.get("debate_transcript", []),
         }
-        
-    # Fallback contextual mock for UI resilience
-    return {
-        "query_id": query_id,
-        "status": "completed",
-        "query_text": "Strategic Threat Vector Analysis",
-        "briefing": {
-            "title": "Comprehensive Multilateral Intelligence Briefing",
-            "executive_summary": "Autonomous swarm synthesis indicates escalated supply chain vulnerability across advanced semiconductor packaging and rare earth mineral export restrictions. Multilateral sanctions and trade controls are accelerating sovereign decoupling.",
-            "key_findings": [
-                "Lithography maintenance bans cap sub-7nm Chinese wafer yields at under 35,000 WSPM.",
-                "Gallium and Germanium dual-use export permits have expanded defense avionics lead times by 34 weeks.",
-                "Commercial war-risk insurance surcharges in the Taiwan Strait have spiked 8-fold."
-            ],
-            "scenarios": [
-                {
-                    "name": "Baseline: Sovereign Decoupling & Secondary Retrofitting",
-                    "probability": 65,
-                    "impact": "HIGH",
-                    "description": "Domestic foundries maximize legacy DUV utilization using secondary market parts; western fab tooling suppliers experience minor revenue dampening offset by US/EU domestic fab subsidies.",
-                    "timeline": "30-90 Days"
-                },
-                {
-                    "name": "Escalation: Total Lithography Maintenance Embargo",
-                    "probability": 25,
-                    "impact": "CRITICAL",
-                    "description": "Strict enforcement halts all third-party software updates and field maintenance, causing Chinese sub-7nm foundry defect rates to spike beyond 60% and triggering retaliatory rare earth permit halts.",
-                    "timeline": "90-180 Days"
-                },
-                {
-                    "name": "Mitigation: Bilateral Legacy Hardware Grandfathering",
-                    "probability": 10,
-                    "impact": "MODERATE",
-                    "description": "Bilateral trade consultations establish strict tiering, exempting 28nm+ trailing-edge nodes and calming global automotive and consumer electronics supply chains.",
-                    "timeline": "180+ Days"
-                }
-            ],
-            "timeline_horizons": {
-                "horizon_30d": "Immediate supplier audits, emergency inventory rebalancing, and engagement with legal counsel on regulatory exposure.",
-                "horizon_90d": "Secondary procurement contracts operationalized; financial hedges adjusted against spot volatility.",
-                "horizon_180d": "Structural realignment achieved; capex diverted toward sovereign-resilient and dual-sourced logistics architectures."
-            },
-            "recommendations": [
-                "Initiate multi-tier supply chain audits to identify unhedged single-point-of-failure component dependencies.",
-                "Establish contingency buffers for critical materials and pre-qualify secondary regional suppliers.",
-                "Implement continuous geopolitical monitoring to trigger automatic inventory surge protocols upon policy escalation."
-            ],
-            "claims": [
-                {
-                    "id": "clm_1",
-                    "statement": "ASML immersion DUV maintenance bans severely constrain advanced node fabrication yields.",
-                    "confidence_score": 0.92,
-                    "agent_id": "recon_agent",
-                    "challenged": False,
-                    "sources": [
-                        {"title": "Bureau of Industry and Security (BIS) Directive 2026", "tier": 1, "trust_score": 0.95, "snippet": "Advanced immersion DUV lithography systems require mandatory export licensing."},
-                        {"title": "ASML Annual Investor Filing Q4", "tier": 1, "trust_score": 0.92, "snippet": "Direct maintenance agreements for Chinese mainland foundries terminated per Dutch regulations."}
-                    ]
-                },
-                {
-                    "id": "clm_2",
-                    "statement": "Gallium dual-use export controls directly impact active AESA radar procurement programs.",
-                    "confidence_score": 0.74,
-                    "agent_id": "financial_agent",
-                    "challenged": True,
-                    "challenge_note": "Secondary scrap recycling in Japan and Korea supplies up to 30% of domestic gallium needs.",
-                    "sources": [
-                        {"title": "USGS Mineral Commodity Summary", "tier": 1, "trust_score": 0.94, "snippet": "Primary gallium production remains concentrated; lead times expanded to 34 weeks."},
-                        {"title": "Nikkei Asia Supply Chain Review", "tier": 2, "trust_score": 0.81, "snippet": "Defense prime contractors auditing Tier-2 Gallium Nitride component suppliers."}
-                    ]
-                },
-                {
-                    "id": "clm_3",
-                    "statement": "Maritime war-risk insurance premiums for Taiwan Strait passages increased from 0.02% to 0.16%.",
-                    "confidence_score": 0.88,
-                    "agent_id": "geopolitical_agent",
-                    "challenged": False,
-                    "sources": [
-                        {"title": "Lloyd's Market Association Joint War Committee", "tier": 1, "trust_score": 0.96, "snippet": "Enhanced War Risk Area designation triggered updated hull insurance tariff schedules."}
-                    ]
-                }
-            ]
-        },
-        "confidence": {
-            "overall_score": 85,
-            "global_score": 85,
-            "evidence_richness": 88,
-            "consensus_score": 82,
-            "challenge_survival_rate": 78
-        },
-        "challenges": [
-            {
-                "claim_id": "clm_2",
-                "challenge": "Recycled secondary gallium streams offset primary supply bottlenecks for consumer electronics, though defense-grade GaN remains constrained.",
-                "status": "revised"
-            }
-        ]
-    }
+
+    # 3. Unknown ID — return 404 so the UI doesn't show stale mock data
+    raise HTTPException(
+        status_code=404,
+        detail=f"Query session '{query_id}' not found. It may still be processing or has expired."
+    )
 
 class QueryPayload(BaseModel):
     query: Optional[str] = None
@@ -252,71 +171,119 @@ class QueryPayload(BaseModel):
     max_rounds: Optional[int] = 2
     source_tier: Optional[int] = 2
 
+# ── WebSocket event type → WS message type mapping ──────────────────────────
+_EVENT_TYPE_MAP = {
+    "agent_started":     "agent",
+    "agent_claim":       "claim",
+    "agent_revising":    "agent",
+    "debate_challenge":  "challenge",
+    "debate_response":   "challenge",
+    "debate_revision":   "agent",
+    "synthesis_complete":"system",
+}
+
 async def run_orchestrator_background(session_id: str, query_text: str, initial_state: dict):
+    """
+    Runs the LangGraph multi-agent orchestration in the background and
+    streams rich per-agent, per-claim, per-debate events to connected WS clients.
+    """
     # Brief buffer for client WebSocket hookup
     await asyncio.sleep(0.8)
-    
+
+    llm_mode = "🤖 Real Gemini LLM" if is_configured() else "⚠️  Heuristic Fallback (no API key)"
     await manager.broadcast(session_id, {
         "type": "system",
-        "message": "Initializing LangGraph Multi-Agent War Room Orchestrator...",
+        "message": f"Initializing AEGIS Multi-Agent War Room... Mode: {llm_mode}",
         "progress": 5
     })
-    
+
     all_accumulated_claims = []
     final_briefing = {}
     confidence_metrics = {}
     challenges = []
     agent_responses = {}
-    
+    debate_transcript = []
+
     try:
         progress = 10
         async for output in orchestrator_app.astream(initial_state):
             for node_name, state_update in output.items():
-                progress = min(progress + 20, 95)
-                msg_type = "agent"
-                display_msg = f"Module '{node_name}' completed execution."
-                
+                # ── Broadcast all rich agent events ─────────────────────────
+                new_events = state_update.get("agent_events", [])
+                # Find events that are newly appended this step
+                prev_event_count = len(initial_state.get("agent_events", []))
+                for ev in new_events[prev_event_count:]:
+                    ws_type = _EVENT_TYPE_MAP.get(ev.get("type", ""), "system")
+                    payload: Dict[str, Any] = {
+                        "type": ws_type,
+                        "event": ev.get("type"),
+                        "message": ev.get("message", ""),
+                        "progress": progress,
+                        "agent_id": ev.get("agent_id", ""),
+                        "agent_name": ev.get("agent_name", ""),
+                        "model": ev.get("model", ""),
+                    }
+                    # Enrich payload with event-specific fields
+                    if ev.get("type") == "agent_claim":
+                        payload["claim_id"] = ev.get("claim_id")
+                        payload["statement"] = ev.get("statement")
+                        payload["confidence"] = ev.get("confidence")
+                        payload["sources"] = ev.get("sources", [])
+                    elif ev.get("type") in ("debate_challenge", "debate_response"):
+                        payload["challenge_text"] = ev.get("challenge_text") or ev.get("target_statement")
+                        payload["target_agent"] = ev.get("target_agent") or ev.get("challenged_agent")
+                        payload["target_agent_name"] = ev.get("target_agent_name") or ev.get("challenged_agent_name")
+                    elif ev.get("type") == "debate_revision":
+                        payload["statement"] = ev.get("statement")
+                        payload["confidence"] = ev.get("confidence")
+                    await manager.broadcast(session_id, payload)
+
+                # Carry forward running count for next iteration
+                initial_state["agent_events"] = new_events
+
+                # ── Accumulate results ───────────────────────────────────────
                 if "devil" in node_name.lower():
-                    msg_type = "challenge"
                     challs = state_update.get("challenges", [])
                     if challs:
                         challenges.extend(challs)
-                        display_msg = f"Devil's Advocate raised {len(challs)} evidentiary challenge(s)."
-                    else:
-                        display_msg = "Devil's Advocate validated all claims without objections."
+                    dt = state_update.get("debate_transcript", [])
+                    if dt:
+                        debate_transcript = dt
                 elif "dispatch" in node_name.lower():
-                    msg_type = "agent"
                     claims = state_update.get("all_claims", [])
                     if claims:
                         all_accumulated_claims = claims
                     agent_resp = state_update.get("agent_responses", {})
                     if agent_resp:
                         agent_responses.update(agent_resp)
-                    display_msg = f"Swarm operatives (Recon, Financial, Geopolitical) gathered {len(claims)} verified claims."
+                    dt = state_update.get("debate_transcript", [])
+                    if dt:
+                        debate_transcript = dt
                 elif node_name == "synthesis":
-                    msg_type = "system"
                     final_briefing = state_update.get("final_briefing", {})
                     confidence_metrics = state_update.get("confidence_metrics", {})
-                    display_msg = "Synthesis Agent compiled executive briefing and confidence metrics."
-                
-                await manager.broadcast(session_id, {
-                    "type": msg_type,
-                    "message": display_msg,
-                    "progress": progress
-                })
-        
-        # Serialize claims
+                    dt = state_update.get("debate_transcript", [])
+                    if dt:
+                        debate_transcript = dt
+
+                progress = min(progress + 20, 95)
+
+        # ── Serialize and finalize ───────────────────────────────────────────
         serialized_claims = [serialize_claim(c) for c in all_accumulated_claims]
+
         if not final_briefing:
             final_briefing = {
                 "title": f"Strategic Analysis: {query_text}",
-                "executive_summary": "Autonomous swarm intelligence briefing compiled from multi-agent retrieval and adversarial cross-validation.",
+                "executive_summary": (
+                    "Autonomous swarm intelligence briefing compiled from multi-agent retrieval "
+                    "and adversarial cross-validation."
+                ),
                 "claims": serialized_claims
             }
         else:
             if "claims" not in final_briefing or not final_briefing["claims"]:
                 final_briefing["claims"] = serialized_claims
-                
+
         if not confidence_metrics:
             confidence_metrics = {
                 "overall_score": 84,
@@ -325,7 +292,10 @@ async def run_orchestrator_background(session_id: str, query_text: str, initial_
                 "consensus_score": 80,
                 "challenge_survival_rate": 82
             }
-            
+
+        # Add debate transcript to briefing so Results page can read it
+        final_briefing["debate_transcript"] = debate_transcript
+
         # Store in session cache
         SESSION_CACHE[session_id] = {
             "query_id": session_id,
@@ -334,34 +304,42 @@ async def run_orchestrator_background(session_id: str, query_text: str, initial_
             "briefing": final_briefing,
             "confidence": confidence_metrics,
             "claims": serialized_claims,
-            "challenges": challenges
+            "challenges": challenges,
+            "debate_transcript": debate_transcript,
         }
-        
+
         await manager.broadcast(session_id, {
             "type": "system",
-            "message": "Synthesis and adversarial validation complete. Strategic dossier ready.",
+            "event": "completed",
+            "message": "✅ Synthesis and adversarial validation complete. Strategic dossier ready.",
             "progress": 100,
             "status": "completed",
             "briefing": final_briefing,
             "confidence": confidence_metrics
         })
-        
+
         # Log to Supabase
         await log_query_complete(session_id, "completed")
         await log_briefing(session_id, final_briefing, confidence_metrics)
-        
+
     except Exception as e:
         logger.error(f"Error processing query in orchestrator: {e}", exc_info=True)
         await manager.broadcast(session_id, {
             "type": "challenge",
-            "message": f"Orchestrator error: {str(e)}",
+            "event": "error",
+            "message": f"❌ Orchestrator error: {str(e)}",
             "status": "failed"
         })
+        SESSION_CACHE[session_id] = {
+            **SESSION_CACHE.get(session_id, {}),
+            "status": "failed",
+            "error": str(e)
+        }
         await log_query_complete(session_id, "failed")
 
 @app.post("/api/query")
 async def submit_query(
-    payload: QueryPayload, 
+    payload: QueryPayload,
     background_tasks: BackgroundTasks,
     query: Optional[str] = Query(None)
 ):
@@ -373,14 +351,14 @@ async def submit_query(
     query_text = query or payload.query
     if not query_text:
         raise HTTPException(status_code=400, detail="Query text is required.")
-        
+
     session_id = str(uuid.uuid4())
     request = AgentRequest(
-        query=query_text, 
+        query=query_text,
         session_id=session_id,
         max_rounds=payload.max_rounds or 2
     )
-    
+
     initial_state = {
         "request": request,
         "all_claims": [],
@@ -388,9 +366,11 @@ async def submit_query(
         "challenges": [],
         "round_count": 0,
         "final_briefing": {},
-        "confidence_metrics": {}
+        "confidence_metrics": {},
+        "agent_events": [],
+        "debate_transcript": [],
     }
-    
+
     # Record in cache and Supabase
     SESSION_CACHE[session_id] = {
         "query_id": session_id,
@@ -399,15 +379,17 @@ async def submit_query(
         "briefing": {},
         "confidence": {},
         "claims": [],
-        "challenges": []
+        "challenges": [],
+        "debate_transcript": [],
     }
     await log_query(session_id, query_text)
-    
+
     background_tasks.add_task(run_orchestrator_background, session_id, query_text, initial_state)
-    
+
     return {
-        "message": "Query started", 
-        "query_id": session_id
+        "message": "Query started",
+        "query_id": session_id,
+        "llm_configured": is_configured()
     }
 
 @app.get("/api/graph/subgraph")
@@ -436,14 +418,14 @@ async def get_graph_subgraph(query: Optional[str] = None, hops: int = 2):
                 src_type = row["source_type"] or "Organization"
                 tgt_type = row["target_type"] or "Country"
                 rel = row["relationship"] or "RELATED_TO"
-                
+
                 if src_name not in nodes_dict:
                     nodes_dict[src_name] = {"id": src_name, "name": src_name, "type": src_type}
                 if tgt_name not in nodes_dict:
                     nodes_dict[tgt_name] = {"id": tgt_name, "name": tgt_name, "type": tgt_type}
-                    
+
                 links.append({"source": src_name, "target": tgt_name, "label": rel})
-                
+
             return {
                 "nodes": list(nodes_dict.values()),
                 "links": links,
@@ -470,7 +452,7 @@ async def get_graph_subgraph(query: Optional[str] = None, hops: int = 2):
         {"id": "MSFT_OPENAI", "name": "Microsoft / OpenAI Alliance", "type": "Organization", "country": "USA", "tier": "Hyperscaler / Frontier AI"},
         {"id": "HBM3E", "name": "High Bandwidth Memory (HBM3e)", "type": "Technology", "country": "Global", "tier": "Critical Component"}
     ]
-    
+
     demo_links = [
         {"source": "BIS", "target": "ASML", "label": "REGULATES"},
         {"source": "ASML", "target": "TSMC", "label": "SUPPLIES_TO"},
@@ -510,7 +492,7 @@ async def get_graph_subgraph(query: Optional[str] = None, hops: int = 2):
                     {"source": "AUTO_AI_ADAS", "target": "NVIDIA", "label": "POWERS_DRIVE_PLATFORM"},
                     {"source": "EU_AI_ACT", "target": "AUTO_AI_ADAS", "label": "REGULATES_SAFETY_SYSTEMS"}
                 ])
-    
+
     return {
         "nodes": demo_nodes,
         "links": demo_links,
