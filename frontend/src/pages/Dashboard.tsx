@@ -141,23 +141,22 @@ export function Dashboard() {
       
       {/* Tactical Hero & Mission Statement */}
       <div className="text-center space-y-4 pt-4">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-mono tracking-widest uppercase">
-          <Crosshair className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: "8s" }} />
-          Autonomous Multi-Agent Intelligence War Room
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs tracking-wider uppercase font-medium">
+          <Database className="w-3.5 h-3.5" />
+          Strategic Intelligence Platform
         </div>
         
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-400">
-          Global Threat Vector Synthesis
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-gray-900 via-gray-700 to-gray-500 dark:from-white dark:via-slate-100 dark:to-slate-400">
+          Global Intelligence & Threat Analysis
         </h1>
         
-        <p className="text-muted-foreground text-sm md:text-base max-w-2xl mx-auto">
-          Deploy an adversarial swarm of specialized intelligence agents. Cross-examine claims through live debate, 
-          graph traversal, and automated confidence scoring.
+        <p className="text-muted-foreground text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
+          Leverage specialized intelligence models to analyze claims, cross-examine data across multiple domains, and generate reliable, confidence-scored insights.
         </p>
       </div>
 
       {/* Main Command Input Box */}
-      <Card className="border-border/60 bg-card/75 backdrop-blur-2xl shadow-2xl overflow-hidden ring-1 ring-white/5 transition-all focus-within:ring-primary/40 focus-within:border-primary/50">
+      <Card className="border-border/60 bg-card/75 backdrop-blur-2xl shadow-xl overflow-hidden ring-1 ring-black/5 dark:ring-white/5 transition-all focus-within:ring-primary/40 focus-within:border-primary/50">
         <CardContent className="p-4 md:p-5">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative flex items-center">
@@ -167,39 +166,39 @@ export function Dashboard() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Enter intelligence objective (e.g. 'Analyze impact of semiconductor export restrictions on NVIDIA and TSMC')..."
-                className="w-full pl-12 pr-32 h-16 bg-background/50 border-border/40 text-base md:text-lg focus-visible:ring-1 focus-visible:ring-primary placeholder:text-muted-foreground/60 rounded-xl"
+                placeholder="Enter your analysis objective (e.g. 'Analyze the impact of semiconductor export restrictions')..."
+                className="w-full pl-12 pr-36 h-16 bg-background/50 border-border/40 text-base md:text-lg focus-visible:ring-1 focus-visible:ring-primary placeholder:text-muted-foreground/60 rounded-xl transition-colors"
               />
               <Button 
                 type="submit" 
                 disabled={!query.trim() || isSubmitting}
-                className="absolute right-2 h-12 px-6 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20 transition-all active:scale-95 gap-2"
+                className="absolute right-2 h-12 px-6 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md shadow-primary/20 transition-all active:scale-95 gap-2"
               >
-                <span>{isSubmitting ? "Deploying..." : "Launch Swarm"}</span>
+                <span>{isSubmitting ? "Running..." : "Run Analysis"}</span>
                 <Send className="w-4 h-4" />
               </Button>
             </div>
 
             {/* Quick Controls Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 px-1 text-xs text-muted-foreground font-mono">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 px-1 text-xs text-muted-foreground font-medium">
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5 text-foreground/80">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
                   Devil's Advocate Active
                 </span>
                 <span className="flex items-center gap-1.5 text-foreground/80">
                   <Database className="w-3.5 h-3.5 text-primary" />
-                  Hybrid GraphRAG (Neo4j + Chroma)
+                  Knowledge Graph Active
                 </span>
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center gap-1 text-primary hover:underline cursor-pointer"
+                className="flex items-center gap-1 text-primary hover:underline cursor-pointer transition-colors"
               >
                 <Sliders className="w-3.5 h-3.5" />
-                {showAdvanced ? "Hide Mission Parameters" : "Tune Swarm Parameters"}
+                {showAdvanced ? "Hide Advanced Options" : "Advanced Options"}
               </button>
             </div>
 
@@ -248,13 +247,13 @@ export function Dashboard() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-              <Radio className="w-4 h-4 text-primary" />
-              Active Intelligence Operatives
+            <h2 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-primary" />
+              Active Intelligence Modules
             </h2>
-            <p className="text-xs text-muted-foreground">Select domain specialists to engage in the parallel reconnaissance pass.</p>
+            <p className="text-sm text-muted-foreground mt-1">Select the specialized modules you want to include in this analysis.</p>
           </div>
-          <span className="text-xs font-mono text-primary font-semibold">{activeAgents.length} of 3 Dispatched</span>
+          <span className="text-sm text-primary font-medium">{activeAgents.length} of 3 Selected</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -298,14 +297,14 @@ export function Dashboard() {
       </div>
 
       {/* Preset Strategic Threat Scenarios */}
-      <div className="space-y-4 pt-2">
+      <div className="space-y-4 pt-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-400" />
-              High-Value Intelligence Scenarios (Corpus Presets)
+            <h2 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
+              <Compass className="w-4 h-4 text-primary" />
+              Example Scenarios
             </h2>
-            <p className="text-xs text-muted-foreground">Select a verified test scenario to evaluate end-to-end multi-agent adversarial synthesis.</p>
+            <p className="text-sm text-muted-foreground mt-1">Try one of our pre-built scenarios to see the platform in action.</p>
           </div>
         </div>
 

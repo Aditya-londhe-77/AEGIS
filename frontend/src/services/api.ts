@@ -52,6 +52,22 @@ export interface BriefingData {
   sections?: Array<{ title: string; content: string }>;
 }
 
+export interface DebateEntry {
+  round: number;
+  type: "challenge_target" | "challenge_response" | "revision";
+  agent_id?: string;
+  agent_name?: string;
+  target_agent?: string;
+  target_agent_name?: string;
+  target_statement?: string;
+  target_confidence?: number;
+  challenge_text?: string;
+  challenged_agent?: string;
+  challenged_agent_name?: string;
+  statement?: string;
+  confidence?: number;
+}
+
 export interface QueryResult {
   query_id: string;
   status: "processing" | "completed" | "failed";
@@ -60,6 +76,7 @@ export interface QueryResult {
   confidence: ConfidenceMetrics;
   claims: Claim[];
   challenges?: Array<{ claim_id: string; challenge: string; status?: string }>;
+  debate_transcript?: DebateEntry[];
   created_at?: string;
 }
 
