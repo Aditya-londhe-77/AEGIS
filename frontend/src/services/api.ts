@@ -68,6 +68,21 @@ export interface DebateEntry {
   confidence?: number;
 }
 
+export interface AgentTraceEvent {
+  type?: string;
+  time?: string;
+  agent_id?: string;
+  agent_name?: string;
+  model?: string;
+  message?: string;
+  statement?: string;
+  confidence?: number;
+  sources?: string[];
+  challenge_text?: string;
+  target_agent_name?: string;
+  target_statement?: string;
+}
+
 export interface QueryResult {
   query_id: string;
   status: "processing" | "completed" | "failed";
@@ -77,6 +92,9 @@ export interface QueryResult {
   claims: Claim[];
   challenges?: Array<{ claim_id: string; challenge: string; status?: string }>;
   debate_transcript?: DebateEntry[];
+  agent_events?: AgentTraceEvent[];
+  analysis_mode?: "gemini" | "heuristic_fallback" | string;
+  llm_configured?: boolean;
   created_at?: string;
 }
 

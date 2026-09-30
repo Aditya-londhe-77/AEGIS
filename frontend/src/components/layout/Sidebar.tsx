@@ -13,13 +13,18 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 border-r border-border bg-card/50 backdrop-blur-xl hidden md:flex flex-col">
-      <div className="h-16 flex items-center px-6 border-b border-border">
-        <ShieldAlert className="w-6 h-6 text-primary mr-2" />
-        <h1 className="font-bold text-xl tracking-tighter">AEGIS</h1>
+    <aside className="hidden w-64 shrink-0 flex-col border-r border-border/70 bg-card/70 backdrop-blur-xl md:flex">
+      <div className="flex h-20 items-center border-b border-border/60 px-6">
+        <div className="mr-3 flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm shadow-primary/20">
+          <ShieldAlert className="h-5 w-5" />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold tracking-tight">AEGIS</h1>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Intelligence OS</p>
+        </div>
       </div>
       
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 space-y-1 p-4">
         {links.map((link) => {
           const Icon = link.icon;
           const isActive = location.pathname === link.href;
@@ -29,24 +34,24 @@ export function Sidebar() {
               key={link.name}
               to={link.href}
               className={cn(
-                "flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                "group flex items-center rounded-xl px-3 py-3 text-sm font-semibold transition-all duration-200",
                 isActive 
-                  ? "bg-primary/10 text-primary" 
+                  ? "bg-accent text-accent-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
             >
-              <Icon className="w-5 h-5 mr-3" />
+              <Icon className="mr-3 h-[18px] w-[18px] transition-transform group-hover:scale-105" />
               {link.name}
             </Link>
           );
         })}
       </nav>
       
-      <div className="p-4 border-t border-border">
-        <div className="bg-secondary/50 rounded-lg p-4">
-          <p className="text-xs text-muted-foreground font-medium mb-1">SYSTEM STATUS</p>
-          <div className="flex items-center text-sm font-medium text-emerald-500">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />
+      <div className="border-t border-border/60 p-4">
+        <div className="rounded-xl border border-border/60 bg-secondary/50 p-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">System status</p>
+          <div className="flex items-center text-sm font-semibold text-emerald-600">
+            <div className="mr-2 h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
             Agents Online
           </div>
         </div>

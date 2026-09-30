@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Radio, Network, History } from "lucide-react";
+import { Activity, History, Network, Radio, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function Header() {
   const [timeStr, setTimeStr] = useState("");
@@ -17,30 +18,43 @@ export function Header() {
   }, []);
 
   return (
-    <header className="h-16 border-b border-border/60 bg-card/70 backdrop-blur-xl flex items-center justify-between px-6 z-20 shadow-sm">
+    <header className="z-20 flex min-h-20 items-center justify-between border-b border-border/70 bg-background/80 px-4 backdrop-blur-xl sm:px-6">
       {/* Left: Tactical Threat Status */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono tracking-wider font-semibold">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span>
           </span>
-          DEFCON 3 // ELEVATED SURVEILLANCE
+          Elevated surveillance
         </div>
 
-        <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground font-mono">
-          <Radio className="w-3.5 h-3.5 text-primary animate-pulse" />
-          <span>SWARM: RECON · FINANCIAL · GEO · DEVIL'S ADVOCATE · SYNTHESIS</span>
+        <div className="hidden items-center gap-2 text-xs text-muted-foreground lg:flex">
+          <Radio className="h-3.5 w-3.5 animate-pulse text-primary" />
+          <span>Live intelligence swarm</span>
         </div>
       </div>
 
+      <nav className="flex items-center gap-1 md:hidden" aria-label="Primary navigation">
+        {[
+          { href: "/", label: "Operation Center", icon: Activity },
+          { href: "/graph", label: "Knowledge Graph", icon: Network },
+          { href: "/history", label: "Threat Logs", icon: History },
+          { href: "/settings", label: "Swarm Config", icon: Settings },
+        ].map(({ href, label, icon: Icon }) => (
+          <Link key={href} to={href} title={label} className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+            <Icon className="h-4 w-4" />
+          </Link>
+        ))}
+      </nav>
+
       {/* Center/Right: Live UTC Clock & Telemetry Quick Actions */}
       <div className="flex items-center gap-3">
-        <div className="hidden sm:block text-right font-mono">
-          <div className="text-xs font-medium text-foreground/80">{timeStr || "SYSTEM CLOCK"}</div>
-          <div className="text-[10px] text-emerald-400 flex items-center justify-end gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            TELEMETRY ENCRYPTED
+        <div className="hidden text-right sm:block">
+          <div className="text-xs font-semibold text-foreground/80">{timeStr || "SYSTEM CLOCK"}</div>
+          <div className="flex items-center justify-end gap-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-600">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Telemetry encrypted
           </div>
         </div>
 
@@ -50,7 +64,7 @@ export function Header() {
           <Link to="/graph">
             <Badge 
               variant="outline" 
-              className="cursor-pointer bg-secondary/40 hover:bg-secondary border-border/80 text-foreground transition-all gap-1.5 py-1 text-xs"
+              className="cursor-pointer gap-1.5 border-border/80 bg-card text-foreground transition-all hover:bg-secondary"
             >
               <Network className="w-3 h-3 text-primary" />
               <span className="hidden md:inline">Knowledge Graph</span>
@@ -60,12 +74,13 @@ export function Header() {
           <Link to="/history">
             <Badge 
               variant="outline" 
-              className="cursor-pointer bg-secondary/40 hover:bg-secondary border-border/80 text-foreground transition-all gap-1.5 py-1 text-xs"
+              className="cursor-pointer gap-1.5 border-border/80 bg-card text-foreground transition-all hover:bg-secondary"
             >
               <History className="w-3 h-3 text-emerald-400" />
               <span className="hidden md:inline">Threat Logs</span>
             </Badge>
           </Link>
+          <ThemeToggle />
         </div>
       </div>
     </header>

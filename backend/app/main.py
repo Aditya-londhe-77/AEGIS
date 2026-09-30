@@ -157,6 +157,9 @@ async def get_query_result(query_id: str):
             "claims": raw_data.get("claims", []),
             "challenges": raw_data.get("challenges", []),
             "debate_transcript": raw_data.get("debate_transcript", []),
+            "agent_events": raw_data.get("agent_events", []),
+            "analysis_mode": raw_data.get("analysis_mode", "heuristic_fallback"),
+            "llm_configured": raw_data.get("llm_configured", False),
         }
 
     # 3. Unknown ID — return 404 so the UI doesn't show stale mock data
@@ -191,10 +194,13 @@ async def run_orchestrator_background(session_id: str, query_text: str, initial_
     await asyncio.sleep(0.8)
 
     llm_mode = "🤖 Real Gemini LLM" if is_configured() else "⚠️  Heuristic Fallback (no API key)"
+    analysis_mode = "gemini" if is_configured() else "heuristic_fallback"
     await manager.broadcast(session_id, {
         "type": "system",
         "message": f"Initializing AEGIS Multi-Agent War Room... Mode: {llm_mode}",
-        "progress": 5
+        "progress": 5,
+        "analysis_mode": analysis_mode,
+        "llm_configured": is_configured(),
     })
 
     all_accumulated_claims = []
@@ -203,6 +209,7 @@ async def run_orchestrator_background(session_id: str, query_text: str, initial_
     challenges = []
     agent_responses = {}
     debate_transcript = []
+    agent_events = []
 
     try:
         progress = 10
@@ -240,6 +247,7 @@ async def run_orchestrator_background(session_id: str, query_text: str, initial_
 
                 # Carry forward running count for next iteration
                 initial_state["agent_events"] = new_events
+                agent_events = list(new_events)
 
                 # ── Accumulate results ───────────────────────────────────────
                 if "devil" in node_name.lower():
@@ -272,29 +280,16 @@ async def run_orchestrator_background(session_id: str, query_text: str, initial_
         serialized_claims = [serialize_claim(c) for c in all_accumulated_claims]
 
         if not final_briefing:
-            final_briefing = {
-                "title": f"Strategic Analysis: {query_text}",
-                "executive_summary": (
-                    "Autonomous swarm intelligence briefing compiled from multi-agent retrieval "
-                    "and adversarial cross-validation."
-                ),
-                "claims": serialized_claims
-            }
-        else:
-            if "claims" not in final_briefing or not final_briefing["claims"]:
-                final_briefing["claims"] = serialized_claims
+            raise RuntimeError("The synthesis engine returned no briefing.")
 
-        if not confidence_metrics:
-            confidence_metrics = {
-                "overall_score": 84,
-                "global_score": 84,
-                "evidence_richness": 86,
-                "consensus_score": 80,
-                "challenge_survival_rate": 82
-            }
+        if "claims" not in final_briefing or not final_briefing["claims"]:
+            final_briefing["claims"] = serialized_claims
 
         # Add debate transcript to briefing so Results page can read it
         final_briefing["debate_transcript"] = debate_transcript
+        final_briefing["agent_events"] = agent_events
+        final_briefing["analysis_mode"] = analysis_mode
+        final_briefing["llm_configured"] = is_configured()
 
         # Store in session cache
         SESSION_CACHE[session_id] = {
@@ -306,6 +301,9 @@ async def run_orchestrator_background(session_id: str, query_text: str, initial_
             "claims": serialized_claims,
             "challenges": challenges,
             "debate_transcript": debate_transcript,
+            "agent_events": agent_events,
+            "analysis_mode": analysis_mode,
+            "llm_configured": is_configured(),
         }
 
         await manager.broadcast(session_id, {
@@ -381,6 +379,9 @@ async def submit_query(
         "claims": [],
         "challenges": [],
         "debate_transcript": [],
+        "agent_events": [],
+        "analysis_mode": "gemini" if is_configured() else "heuristic_fallback",
+        "llm_configured": is_configured(),
     }
     await log_query(session_id, query_text)
 
