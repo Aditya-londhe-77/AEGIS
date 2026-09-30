@@ -3,13 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { 
   Send, 
   Cpu, 
-  Crosshair, 
   Sliders, 
   Database, 
-  Radio, 
   Flame, 
   Compass, 
-  Zap, 
   ArrowRight,
   ShieldAlert,
   Search
@@ -137,26 +134,26 @@ export function Dashboard() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 pb-16 animate-in fade-in duration-700">
+    <div className="page-enter mx-auto max-w-6xl space-y-10 pb-16">
       
       {/* Tactical Hero & Mission Statement */}
-      <div className="text-center space-y-4 pt-4">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs tracking-wider uppercase font-medium">
+      <div className="space-y-4 pt-4 text-center">
+        <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-accent px-4 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-accent-foreground">
           <Database className="w-3.5 h-3.5" />
           Strategic Intelligence Platform
         </div>
         
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-gray-900 via-gray-700 to-gray-500 dark:from-white dark:via-slate-100 dark:to-slate-400">
-          Global Intelligence & Threat Analysis
+        <h1 className="mx-auto max-w-4xl text-4xl font-bold tracking-[-0.04em] text-foreground sm:text-5xl lg:text-6xl">
+          Ask better questions about global risk.
         </h1>
         
-        <p className="text-muted-foreground text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
+        <p className="mx-auto max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
           Leverage specialized intelligence models to analyze claims, cross-examine data across multiple domains, and generate reliable, confidence-scored insights.
         </p>
       </div>
 
       {/* Main Command Input Box */}
-      <Card className="border-border/60 bg-card/75 backdrop-blur-2xl shadow-xl overflow-hidden ring-1 ring-black/5 dark:ring-white/5 transition-all focus-within:ring-primary/40 focus-within:border-primary/50">
+      <Card className="surface overflow-hidden ring-1 ring-black/[0.02] transition-all focus-within:border-primary/50 focus-within:ring-primary/20">
         <CardContent className="p-4 md:p-5">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative flex items-center">
@@ -167,7 +164,7 @@ export function Dashboard() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Enter your analysis objective (e.g. 'Analyze the impact of semiconductor export restrictions')..."
-                className="w-full pl-12 pr-36 h-16 bg-background/50 border-border/40 text-base md:text-lg focus-visible:ring-1 focus-visible:ring-primary placeholder:text-muted-foreground/60 rounded-xl transition-colors"
+                className="h-16 w-full rounded-2xl border-border/50 bg-background/70 pl-12 pr-36 text-base transition-colors placeholder:text-muted-foreground/60 focus-visible:ring-1 focus-visible:ring-primary md:text-lg"
               />
               <Button 
                 type="submit" 

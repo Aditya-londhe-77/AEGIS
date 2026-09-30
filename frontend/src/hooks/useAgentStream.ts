@@ -60,7 +60,6 @@ export function useAgentStream(queryId: string | undefined) {
   const [isComplete, setIsComplete] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const pollingRef = useRef<any>(null);
-  const fallbackTimerRef = useRef<any>(null);
   const wsConnectedRef = useRef(false);
 
   const addEvent = (rawType: string, text: string, extras?: Partial<AgentEvent>) => {
@@ -100,11 +99,6 @@ export function useAgentStream(queryId: string | undefined) {
       ws.onopen = () => {
         wsConnectedRef.current = true;
         addEvent('system', '🔗 Connected to AEGIS Live Telemetry Uplink.');
-        // Clear the fallback timer — we have a real stream now
-        if (fallbackTimerRef.current) {
-          clearInterval(fallbackTimerRef.current);
-          fallbackTimerRef.current = null;
-        }
       };
 
       ws.onmessage = (event) => {
@@ -144,7 +138,7 @@ export function useAgentStream(queryId: string | undefined) {
 
       ws.onerror = () => {
         if (!wsConnectedRef.current) {
-          addEvent('system', '📡 WebSocket unavailable — switching to polling mode.');
+          addEvent('system', '📡 Live telemetry unavailable — waiting for the backend result.');
         }
       };
 
@@ -155,34 +149,13 @@ export function useAgentStream(queryId: string | undefined) {
       addEvent('system', '📡 Streaming via high-speed polling channel.');
     }
 
-    // ── 2. Fallback progress ticker (ONLY fires if WS hasn't connected yet) ─
-    //    Shows generic messages — does NOT inject fake specific claim text.
-    const FALLBACK_MILESTONES = [
-      { p: 20, type: 'agent',     msg: "▶ Recon & Geopolitical Operatives gathering OSINT and regulatory intelligence..." },
-      { p: 40, type: 'agent',     msg: "▶ Financial Operative fetching live market data and analysing commodity exposure..." },
-      { p: 65, type: 'challenge', msg: "⚔️  Devil's Advocate initiating adversarial challenge pass on initial claims..." },
-      { p: 85, type: 'agent',     msg: "🧠 Synthesis Engine compiling multi-horizon strategic dossier..." },
-      { p: 95, type: 'graph',     msg: "📊 Confidence Engine quantifying GraphRAG and Bayesian verification scores..." },
-    ];
-    let milestoneIdx = 0;
-    fallbackTimerRef.current = setInterval(() => {
-      // Only emit fallback messages if WS hasn't taken over
-      if (!wsConnectedRef.current && milestoneIdx < FALLBACK_MILESTONES.length) {
-        const stage = FALLBACK_MILESTONES[milestoneIdx];
-        setProgress(prev => Math.max(prev, stage.p));
-        addEvent(stage.type, stage.msg);
-        milestoneIdx++;
-      }
-    }, 3500);
-
-    // ── 3. REST polling fallback ────────────────────────────────────────────
+    // ── 2. REST polling fallback ────────────────────────────────────────────
     pollingRef.current = setInterval(async () => {
       pollAttempts++;
       try {
         const res = await api.fetchQueryResult(queryId);
         if (res && res.status === 'completed') {
           clearInterval(pollingRef.current);
-          if (fallbackTimerRef.current) clearInterval(fallbackTimerRef.current);
           setProgress(100);
           addEvent('system', '✅ Strategic dossier compiled. Final briefing ready.');
           setIsComplete(true);
@@ -191,20 +164,11 @@ export function useAgentStream(queryId: string | undefined) {
         // Still processing or 404 not yet available — keep polling
       }
 
-      // Hard cap: auto-complete after ~30s to avoid infinite spinner
-      if (pollAttempts > 20) {
-        clearInterval(pollingRef.current);
-        if (fallbackTimerRef.current) clearInterval(fallbackTimerRef.current);
-        setProgress(100);
-        addEvent('system', '⏱️  Analysis timeout reached. Loading available dossier.');
-        setIsComplete(true);
-      }
     }, 1500);
 
     return () => {
       if (wsRef.current) wsRef.current.close();
       if (pollingRef.current) clearInterval(pollingRef.current);
-      if (fallbackTimerRef.current) clearInterval(fallbackTimerRef.current);
     };
   }, [queryId]);
 

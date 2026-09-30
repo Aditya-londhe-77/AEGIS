@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { api, type QueryResult, type Claim, type SourceCitation, type DebateEntry } from "@/services/api";
+import { api, type QueryResult, type Claim, type SourceCitation, type DebateEntry, type AgentTraceEvent } from "@/services/api";
 import { cn } from "@/lib/utils";
 
 // ── Colour helpers ─────────────────────────────────────────────────────────
@@ -150,10 +150,61 @@ const MODEL_COLOR_SMALL: Record<string, string> = {
   "gemini-1.5-pro":   "bg-purple-500/20 text-purple-300 border-purple-500/40",
 };
 
+function AgentWorkPanel({ events, analysisMode }: { events: AgentTraceEvent[]; analysisMode?: string }) {
+  const modeLabel = analysisMode === "gemini" ? "GEMINI LLM" : "RETRIEVAL + HEURISTIC REVIEW";
+
+  return (
+    <Card className="border-border/60 bg-card/60 shadow-xl backdrop-blur-xl">
+      <CardHeader className="border-b border-border/50 bg-secondary/20 pb-4">
+        <CardTitle className="flex items-center justify-between gap-3 text-lg text-foreground">
+          <span className="flex items-center gap-3">
+            <Activity className="h-5 w-5 text-primary" />
+            Agent Work & Evidence Trail
+          </span>
+          <Badge variant="outline" className="shrink-0 text-[10px] font-mono text-muted-foreground">
+            {modeLabel}
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 p-5">
+        {events.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No agent event trace was returned for this session.</p>
+        ) : (
+          events.map((event, index) => {
+            const style = agentStyle(event.agent_id);
+            const detail = event.statement || event.challenge_text || event.message || "Agent event recorded.";
+            return (
+              <div key={`${event.time || "event"}-${index}`} className="rounded-xl border border-border/50 bg-secondary/20 p-3.5">
+                <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-mono text-muted-foreground">{event.time || "--:--:--"}</span>
+                  <span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold", style.text, style.bg, style.border)}>
+                    {event.agent_name || event.agent_id || "System"}
+                  </span>
+                  {event.model && <span className="rounded border border-border/50 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">{event.model}</span>}
+                  {event.confidence !== undefined && <span className="text-[10px] font-mono font-bold text-emerald-500">CONF {event.confidence}%</span>}
+                </div>
+                <p className="text-sm leading-relaxed text-foreground/90">{detail}</p>
+                {event.sources && event.sources.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {event.sources.map((source, sourceIndex) => (
+                      <span key={`${source}-${sourceIndex}`} className="rounded-md border border-border/40 bg-card/70 px-2 py-1 text-[10px] text-muted-foreground">{source}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Dynamic Devil's Advocate Audit Card ───────────────────────────────────
-function DAuditCard({ challenges, transcript }: {
+function DAuditCard({ challenges, transcript, analysisMode }: {
   challenges?: QueryResult["challenges"];
   transcript?: DebateEntry[];
+  analysisMode?: string;
 }) {
   // Collect DA challenge–response pairs from transcript
   const pairs: Array<{ target: DebateEntry; response?: DebateEntry; revision?: DebateEntry }> = [];
@@ -200,7 +251,7 @@ function DAuditCard({ challenges, transcript }: {
       </CardHeader>
       <CardContent className="p-4 space-y-4 text-xs">
         <p className="text-muted-foreground leading-relaxed">
-          The DA used <span className="text-purple-400 font-mono">gemini-1.5-pro</span> to
+          The DA used <span className="text-purple-400 font-mono">{analysisMode === "gemini" ? "gemini-1.5-pro" : "retrieval-backed heuristic review"}</span> to
           adversarially challenge agent claims before certifying final synthesis.
         </p>
 
@@ -398,9 +449,11 @@ Challenge Survival Rate: ${data.confidence?.challenge_survival_rate || 82}%
 
   const briefing = data.briefing;
   const claims = data.claims || [];
-  const confidence = data.confidence || { overall_score: 85, global_score: 85, evidence_richness: 88, consensus_score: 80, challenge_survival_rate: 82 };
-  const globalScore = confidence.global_score || confidence.overall_score || 85;
+  const confidence = data.confidence || {};
+  const formatMetric = (value?: number) => value === undefined ? "N/A" : `${Math.round(value <= 1 ? value * 100 : value)}%`;
+  const globalScore = confidence.global_score ?? confidence.overall_score;
   const debateTranscript = data.debate_transcript || (data.briefing as any)?.debate_transcript || [];
+  const agentEvents = data.agent_events || (data.briefing as any)?.agent_events || [];
 
   return (
     <div className="max-w-6xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700">
@@ -413,6 +466,9 @@ Challenge Survival Rate: ${data.confidence?.challenge_survival_rate || 82}%
               <Lock className="w-3 h-3" />
               INTELLIGENCE BRIEFING // NOFORN
             </span>
+            <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground">
+              {data.llm_configured || data.analysis_mode === "gemini" ? "GEMINI LLM ACTIVE" : "RETRIEVAL + HEURISTIC MODE"}
+            </Badge>
             <span className="text-muted-foreground">ID: {id}</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-foreground">
@@ -454,7 +510,7 @@ Challenge Survival Rate: ${data.confidence?.challenge_survival_rate || 82}%
           <CardContent className="p-4 flex items-center justify-between">
             <div className="space-y-0.5">
               <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold">Global Confidence</span>
-              <div className="text-3xl font-black text-primary">{globalScore}%</div>
+              <div className="text-3xl font-black text-primary">{formatMetric(globalScore)}</div>
             </div>
             <div className="h-10 w-10 rounded-full border-2 border-primary/40 flex items-center justify-center bg-primary/10">
               <Shield className="w-5 h-5 text-primary" />
@@ -465,7 +521,7 @@ Challenge Survival Rate: ${data.confidence?.challenge_survival_rate || 82}%
           <CardContent className="p-4 flex items-center justify-between">
             <div className="space-y-0.5">
               <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold">Evidence Richness</span>
-              <div className="text-3xl font-black text-emerald-400">{confidence.evidence_richness || 88}%</div>
+              <div className="text-3xl font-black text-emerald-400">{formatMetric(confidence.evidence_richness)}</div>
             </div>
             <div className="h-10 w-10 rounded-full border-2 border-emerald-500/40 flex items-center justify-center bg-emerald-500/10">
               <Layers className="w-5 h-5 text-emerald-400" />
@@ -476,7 +532,7 @@ Challenge Survival Rate: ${data.confidence?.challenge_survival_rate || 82}%
           <CardContent className="p-4 flex items-center justify-between">
             <div className="space-y-0.5">
               <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold">Agent Consensus</span>
-              <div className="text-3xl font-black text-purple-400">{confidence.consensus_score || 80}%</div>
+              <div className="text-3xl font-black text-purple-400">{formatMetric(confidence.consensus_score)}</div>
             </div>
             <div className="h-10 w-10 rounded-full border-2 border-purple-500/40 flex items-center justify-center bg-purple-500/10">
               <Brain className="w-5 h-5 text-purple-400" />
@@ -487,7 +543,7 @@ Challenge Survival Rate: ${data.confidence?.challenge_survival_rate || 82}%
           <CardContent className="p-4 flex items-center justify-between">
             <div className="space-y-0.5">
               <span className="text-[10px] font-mono uppercase text-muted-foreground font-semibold">DA Survival Rate</span>
-              <div className="text-3xl font-black text-amber-400">{confidence.challenge_survival_rate || 82}%</div>
+              <div className="text-3xl font-black text-amber-400">{formatMetric(confidence.challenge_survival_rate)}</div>
             </div>
             <div className="h-10 w-10 rounded-full border-2 border-amber-500/40 flex items-center justify-center bg-amber-500/10">
               <Target className="w-5 h-5 text-amber-400" />
@@ -699,6 +755,7 @@ Challenge Survival Rate: ${data.confidence?.challenge_survival_rate || 82}%
           <DAuditCard
             challenges={data.challenges}
             transcript={debateTranscript}
+            analysisMode={data.analysis_mode}
           />
 
           {/* Model Roster */}
@@ -768,6 +825,8 @@ Challenge Survival Rate: ${data.confidence?.challenge_survival_rate || 82}%
           </Button>
         </div>
       </div>
+
+      <AgentWorkPanel events={agentEvents} analysisMode={data.analysis_mode} />
 
       {/* Full Debate Transcript (inline, below main grid) */}
       {debateTranscript.length > 0 && (

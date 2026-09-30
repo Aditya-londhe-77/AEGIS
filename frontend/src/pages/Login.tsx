@@ -67,16 +67,16 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 animate-in fade-in duration-500">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-background to-background pointer-events-none" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4 page-enter">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_hsl(30_100%_94%_/_0.9),transparent_42%)]" />
       
-      <Card className="w-full max-w-md relative z-10 bg-card/60 backdrop-blur-xl border-border/50 shadow-2xl">
-        <CardHeader className="space-y-4 items-center text-center pb-6">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/20 shadow-[0_0_30px_-5px_rgba(var(--primary),0.3)]">
-            <ShieldAlert className="w-8 h-8 text-primary" />
+      <Card className="surface relative z-10 w-full max-w-md">
+        <CardHeader className="items-center space-y-4 pb-6 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+            <ShieldAlert className="h-7 w-7" />
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-3xl font-bold tracking-tight">AEGIS Access</CardTitle>
+            <CardTitle className="text-3xl font-bold tracking-tight">Welcome to AEGIS</CardTitle>
             <CardDescription>Authenticate to access the early warning intelligence system.</CardDescription>
           </div>
         </CardHeader>

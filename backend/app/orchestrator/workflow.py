@@ -294,7 +294,7 @@ async def synthesis(state: OrchestratorState):
         "global_score": metrics.get("global_score", 0),
         "message": (
             f"✅ Synthesis complete — {len(all_claims)} claims validated, "
-            f"global confidence {metrics.get('global_score', 0)}%"
+            f"global confidence {round(metrics.get('global_score', 0) * 100) if metrics.get('global_score', 0) <= 1 else metrics.get('global_score', 0)}%"
         )
     })
 

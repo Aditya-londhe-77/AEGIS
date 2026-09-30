@@ -13,8 +13,6 @@ import {
   ChevronDown,
   ChevronUp,
   Cpu,
-  AlertTriangle,
-  Sparkles,
   MessageSquare,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
